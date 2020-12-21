@@ -2,7 +2,9 @@
 title: "Prueba de Evaluación Continua 3 (PEC3)"
 author: "Francisco Javier Botey Bataller & Lucas Goiriz Beltrán"
 date: "15/12/2020"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -16,44 +18,74 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-
-BCG_strain <-
-  read_delim("task_2-BCG_strain_per_country-1Nov2020.csv", ",")
-COVID <-
-  read_delim(
-    "task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv",
-    ","
-  )
-
-COVID_BGC <- left_join(BCG_strain, COVID, by = "country_name")
-
-plot(
-  COVID_BGC$`BCG Atlas: Which year was vaccination introduced?`,
-  COVID_BGC$deaths_per_million_150_days_after_fifth_death
-)
-
-plot(
-  COVID_BGC$`mandatory_bcg_strain_2015-2020` == "None",
-  COVID_BGC$deaths_per_million_150_days_after_fifth_death
-)
-
-
-ggplot(COVID_BGC, aes(
-  country_name,
-  as.numeric(deaths_per_million_150_days_after_fifth_death)
-)) +
-  geom_col() + theme(axis.text.x = element_blank()) +
-  facet_grid( ~ `mandatory_bcg_strain_1950-1960`)
-
-model <-
-  lm(
-    as.numeric(COVID_BGC$`BCG Atlas: Which year was vaccination introduced?`) ~ as.numeric(COVID_BGC$deaths_per_million_150_days_after_fifth_death)
-  )
-
-summary(model)
-
+library(reshape2)
+library(plotly)
 ```
 
-```{r, echo=FALSE}
-#knitr::purl("PEC2.Rmd")
+
+```{r}
+#Cargo ambos datasets. Añadir explicación de qué contienen.
+BCG_strain <-
+  read_csv("task_2-BCG_strain_per_country-1Nov2020.csv")
+
+#Elimino columnas que sean sólo NA
+BCG_strain <- BCG_strain[,apply(!is.na(BCG_strain),2, all)]
+#De momento, no me interesa qué vacunas se ponían cada año, sino si se ponían o no.
+#Transformo los valores de cada año en
+#0-No se ponía vacuna, hasta ahora None
+#1-Sí se ponía vacuna
+#NA, Este dato es desconocido, hasta ahora Unknown
+
+BCG_strain_no_strain <- BCG_strain
+
+#Transformo los valores de las columnas
+BCG_strain_no_strain[,-1] <- sapply(BCG_strain_no_strain[,-1], function(x){
+  a <- gsub("None", 0, x) %>% gsub("Unknown", NA, .) #Añado los 0 y los NA.
+  for (i in 1:length(a)){ #Serán 1 aquellos que no sean ni 0 ni NA
+    if (a[i] != "0" && !is.na(a[i])){
+      a[i] <- 1
+    }
+  }
+  return(as.integer(a)) #Cambio las columnas a integer
+  })
+
+COVID_noformat <-
+  read_csv(
+    "task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv"
+  )
+#Elimino columnas que sean sólo NA
+COVID_noNA <- COVID_noformat[,apply(!is.na(COVID_noformat),2, all)]
+
+COVID_Na <- sapply(COVID_noNA, function(x)gsub("NULL", NA, x))
+
+COVID_Na_df <- as.data.frame(COVID_Na)
+
+COVID_Na_df[,c("date_fifth_death")] <- as.Date(COVID_Na_df[,c( "date_fifth_death")], "%d/%m/%y")
+
+COVID_Na_df[,c("date_first_death")] <- as.Date(COVID_Na_df[,c( "date_first_death")], "%d/%m/%y")
+
+              
+COVID_Na_df[,-c(1,2,3,4)] <- sapply(COVID_Na_df[,-c(1,2,3,4)], as.numeric)
+
+COVID_BGC <- left_join(BCG_strain_no_strain, COVID_Na_df, by = "country_name")
+
+
+#Reduzco los colnames, son my largos
+
+colnames(COVID_BGC) <- gsub("mandatory_bcg_strain", "strain", colnames(COVID_BGC)) %>%
+  gsub("deaths_per_million", "dpm", .)%>%
+  gsub("days_after_fifth_death", "d", .)%>%
+  gsub("stringency_index", "si", .)
+```
+```{r}
+cormat <- cor(COVID_BGC %>% select(-c("country_name", "alpha_3_code", "date_first_death", "date_fifth_death")) %>% na.omit())
+
+cormat2 <- cormat
+cormat2[upper.tri(cormat2)] <- NA #Para visualizar solamente una vez las correlaciones
+cormat2 <- melt(round(cormat2, 2)) #Formato para poder usar ggplot
+ggplot(cormat2, aes(x=Var1, y=Var2, fill=value)) + geom_tile()+scale_fill_continuous(type = "viridis")
+
+fig <- plot_ly(x = colnames(cormat), y = colnames(cormat), z = cormat, type = "heatmap")
+
+fig
 ```
