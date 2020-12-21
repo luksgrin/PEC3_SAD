@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F)
 ```
 
 # SOFTWARE PARA EL ANÁLISIS DE DATOS (SAD)
@@ -21,6 +21,7 @@ library(tidyverse)
 library(reshape2)
 library(plotly)
 library(kableExtra)
+library(ggrepel)
 ```
 
 
@@ -109,7 +110,7 @@ for (i in seq(1,61, by = 10)){
 
 
 ```{r cormat}
-cormat <- cor(COVID_BGC %>% select(-c("country_name", "alpha_3_code", "date_first_death", "date_fifth_death")) %>% na.omit())
+cormat <- cor(COVID_BGC %>% select(-c("country_name", "alpha_3_code", "date_first_death", "date_fifth_death", 43:71)) %>% na.omit())
 ```
 
 
@@ -123,3 +124,11 @@ fig <- plot_ly(x = colnames(cormat), y = colnames(cormat), z = cormat, type = "h
 
 fig
 ```
+```{r dotplot}
+ggplot(COVID_BGC, aes(x = dpm_50_d, y=`strain2005-2010`, label = country_name))+
+  geom_jitter(position = position_jitter(seed = 1))+
+  geom_label_repel(size = 2,position = position_jitter(seed = 1))+
+  xlim(c(-100,800))
+
+```
+
