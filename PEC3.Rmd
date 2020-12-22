@@ -5,6 +5,7 @@ date: "15/12/2020"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -14,9 +15,9 @@ knitr::opts_chunk$set(echo = TRUE, warning = F)
 # SOFTWARE PARA EL ANÁLISIS DE DATOS (SAD)
 ## MÁSTER UNIVERSITARIO EN BIOINFORMÁTICA Y BIOESTADÍSTICA
 
-### Preliminares
+### **Motivación y datasets empleados**
 
-```{r libraries, warning=F, message=F}
+```{r libraries, warning=F, message=F, echo=F}
 library(tidyverse)
 library(reshape2)
 library(plotly)
@@ -24,9 +25,11 @@ library(kableExtra)
 library(ggrepel)
 ```
 
+El objetivo de nuestro trabajo es estudiar si existe alguna relación entre la vacuna BCG (*Bacillus de Calmette y Guérin*) para la tuberculosis y los datos de mortalidad de la COVID-19 en algunos países, ya que se hay [estudios](https://edition.cnn.com/2020/04/09/health/tuberculosis-bcg-vaccine-coronavirus/index.html) que sugieren esta vacuna incrementa las capacidades inmunitarias de la población, hecho que se ve en el número reducido de fallecimientos por COVID-19 en ciertos países. Mediante los conjuntos de datos de [*BCG*](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-BCG_strain_per_country-1Nov2020.csv) y de [mortalidad por COVID-19](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv) cedidos por [*The BCG world atlas*](http://www.bcgatlas.org/) y por [BCG - COVID-19 AI Challenge](https://www.kaggle.com/bcgvaccine/hackathon) de Kaggle, vamos a intentar desvelar dichas relaciones.
 
 ```{r load data, warning=F, message=F}
-#Cargo ambos datasets. Añadir explicación de qué contienen.
+# Cargamos ambos datasets. Añadir explicación de qué contienen.
+
 BCG_strain <-
   read_csv("task_2-BCG_strain_per_country-1Nov2020.csv")
 
@@ -35,100 +38,208 @@ COVID_noformat <-
     "task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv"
   )
 
+# Intenté ver que hay dentro de los data frames, pero el print es feo así que lo escribiré a mano
+# str(COVID_noformat)
+# str(BCG_strain)
 ```
+El contenido de las variables ``BCG_strain`` y ``COVID_noformat`` es el siguiente:
 
+
+| BCG\_strain                                                | COVID\_noformat                                      |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| country\_name                                              | country\_name                                        |
+| country\_code                                              | alpha\_3\_code                                       |
+| mandatory\_bcg\_strain\_2015-2020                          | date\_first\_death                                   |
+| mandatory\_bcg\_strain\_2010-2015                          | date\_fifth\_death                                   |
+| mandatory\_bcg\_strain\_2005-2010                          | deaths\_per\_million\_10\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_2000-2005                          | deaths\_per\_million\_15\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_1990-2000                          | deaths\_per\_million\_20\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_1980-1990                          | deaths\_per\_million\_25\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_1970-1980                          | deaths\_per\_million\_30\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_1960-1970                          | deaths\_per\_million\_35\_days\_after\_fifth\_death  |
+| mandatory\_bcg\_strain\_1950-1960                          | deaths\_per\_million\_40\_days\_after\_fifth\_death  |
+| vaccination\_timing\_unified                               | deaths\_per\_million\_45\_days\_after\_fifth\_death  |
+| BCG Atlas: Which year was vaccination introduced?          | deaths\_per\_million\_50\_days\_after\_fifth\_death  |
+| Year of changes to BCG schedule                            | deaths\_per\_million\_55\_days\_after\_fifth\_death  |
+| BCG Atlas: BCG Recommendation Type                         | deaths\_per\_million\_60\_days\_after\_fifth\_death  |
+| BCG Atlas: Details of changes                              | deaths\_per\_million\_65\_days\_after\_fifth\_death  |
+| BCG Atlas: Timing of 1st BCG?                              | deaths\_per\_million\_70\_days\_after\_fifth\_death  |
+| BCG Atlas: BCG Strain                                      | deaths\_per\_million\_75\_days\_after\_fifth\_death  |
+| BCG Atlas: How long has this BCG vaccine strain been used? | deaths\_per\_million\_80\_days\_after\_fifth\_death  |
+|                                                            | deaths\_per\_million\_85\_days\_after\_fifth\_death  |
+|                                                            | deaths\_per\_million\_90\_days\_after\_fifth\_death  |
+|                                                            | deaths\_per\_million\_95\_days\_after\_fifth\_death  |
+|                                                            | deaths\_per\_million\_100\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_105\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_110\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_115\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_120\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_125\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_130\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_135\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_140\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_145\_days\_after\_fifth\_death |
+|                                                            | deaths\_per\_million\_150\_days\_after\_fifth\_death |
+|                                                            | stringency\_index\_10\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_15\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_20\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_25\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_30\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_35\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_40\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_45\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_50\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_55\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_60\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_65\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_70\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_75\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_80\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_85\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_90\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_95\_days\_after\_fifth\_death     |
+|                                                            | stringency\_index\_100\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_105\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_110\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_115\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_120\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_125\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_130\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_135\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_140\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_145\_days\_after\_fifth\_death    |
+|                                                            | stringency\_index\_150\_days\_after\_fifth\_death    |
+
+Una visualización preliminar de estos datos revela que son todos del tipo ``string`` y que además muchas columnas sin datos (columnas cuyo único contenido es ``NULL``), por lo tanto llevaremos a cabo una limpieza de los mismos y además llevaremos a cabo un cambio de tipo de variable para que las manipulaciones posteriores sean más cómodas.
 
 ```{r clean data}
-#Limpiar datos de BCG
+# Limpiar datos de BCG
 
-#Elimino columnas que sean sólo NA
-BCG_strain <- BCG_strain[,apply(!is.na(BCG_strain),2, all)]
+# Elimino columnas que sean sólo NA
+BCG_strain <- BCG_strain[, apply(!is.na(BCG_strain), 2, all)]
 
+# De momento, no me interesa qué vacunas se ponían cada año, sino si se ponían o no.
 
-#De momento, no me interesa qué vacunas se ponían cada año, sino si se ponían o no.
-
-#Transformo los valores de cada año en
-#0 - No se ponía vacuna, hasta ahora None
-#1 - Sí se ponía vacuna
-#NA - Este dato es desconocido, hasta ahora Unknown
+# Transformo los valores de cada año en
+# 0 - No se ponía vacuna, hasta ahora None
+# 1 - Sí se ponía vacuna
+# NA - Este dato es desconocido, hasta ahora Unknown
 
 BCG_strain_no_strain <- BCG_strain
 
-#Transformo los valores de las columnas
-BCG_strain_no_strain[,-1] <- sapply(BCG_strain_no_strain[,-1], function(x){
-  a <- gsub("None", 0, x) %>% gsub("Unknown", NA, .) #Añado los 0 y los NA.
-  for (i in 1:length(a)){ #Serán 1 aquellos que no sean ni 0 ni NA
-    if (a[i] != "0" && !is.na(a[i])){
-      a[i] <- 1
-    }
-  }
-  return(as.integer(a)) #Cambio las columnas a integer
-  })
+# Transformo los valores de las columnas
+BCG_strain_no_strain[, -1] <-
+    sapply(BCG_strain_no_strain[, -1], function(x) {
+        a <-
+            gsub("None", 0, x) %>% gsub("Unknown", NA, .) # Añado los 0 y los NA.
+        for (i in 1:length(a)) {
+            # Serán 1 aquellos que no sean ni 0 ni NA
+            if (a[i] != "0" && !is.na(a[i])) {
+                a[i] <- 1
+            }
+        }
+        return(as.integer(a)) # Cambio las columnas a integer
+    })
 
-#Limpiar datos de COVID
+####################################################################################
 
-#Elimino columnas que sean sólo NA
-COVID_noNA <- COVID_noformat[,apply(!is.na(COVID_noformat),2, all)]
+# Limpiar datos de COVID
 
-#En este caso, para variar, los valores vacíos están denotados como NULL,
-#cambio esto a NA
-COVID_Na <- sapply(COVID_noNA, function(x)gsub("NULL", NA, x))
+# Elimino columnas que sean sólo NA
+COVID_noNA <- COVID_noformat[, apply(!is.na(COVID_noformat), 2, all)]
 
-#El resulatado de la función anterior es una string. Lo convierto a dataframe.
+# En este caso, para variar, los valores vacíos están denotados como NULL,
+# cambio esto a NA
+COVID_Na <- sapply(COVID_noNA, function(x)
+    gsub("NULL", NA, x))
+
+# El resulatado de la función anterior es una string. Lo convierto a dataframe.
 COVID_Na_df <- as.data.frame(COVID_Na)
 
-#Modifico las fechas para que se almacenen como Date 
-COVID_Na_df[,c("date_fifth_death")] <- as.Date(COVID_Na_df[,c( "date_fifth_death")], "%d/%m/%y")
+# Modifico las fechas para que se almacenen como Date
+COVID_Na_df[, c("date_fifth_death")] <-
+    as.Date(COVID_Na_df[, c("date_fifth_death")], "%d/%m/%y")
 
-COVID_Na_df[,c("date_first_death")] <- as.Date(COVID_Na_df[,c( "date_first_death")], "%d/%m/%y")
+COVID_Na_df[, c("date_first_death")] <-
+    as.Date(COVID_Na_df[, c("date_first_death")], "%d/%m/%y")
 
-#Modifico las muertes para que se almacenen como floats.              
-COVID_Na_df[,-c(1,2,3,4)] <- sapply(COVID_Na_df[,-c(1,2,3,4)], as.numeric)
+# Modifico las muertes para que se almacenen como floats.
+COVID_Na_df[, -c(1, 2, 3, 4)] <-
+    sapply(COVID_Na_df[, -c(1, 2, 3, 4)], as.numeric)
 
+################################################################################################
 
-#Finalmente, junto ambos dataframes en uno sólo.
-COVID_BGC <- left_join(BCG_strain_no_strain, COVID_Na_df, by = "country_name")
+# Junto ambos dataframes en uno sólo.
+COVID_BGC <-
+    left_join(BCG_strain_no_strain, COVID_Na_df, by = "country_name")
 
-#Reduzco los colnames, son my largos
-
-colnames(COVID_BGC) <- gsub("mandatory_bcg_strain_", "strain", colnames(COVID_BGC)) %>%
-  gsub("deaths_per_million", "dpm", .)%>%
-  gsub("days_after_fifth_death", "d", .)%>%
-  gsub("stringency_index", "si", .)
-
+# Reduzco los colnames, son my largos
+colnames(COVID_BGC) <-
+    gsub("mandatory_bcg_strain_", "strain", colnames(COVID_BGC)) %>%
+    gsub("deaths_per_million", "dpm", .) %>%
+    gsub("days_after_fifth_death", "d", .) %>%
+    gsub("stringency_index", "si", .)
 ```
 
-```{r print_table, results="asis"}
+Nuestra tabla resultante es la siguiente:
+
+```{r print_table, results="asis", echo=FALSE}
 opts <- options(knitr.kable.NA = "")
-for (i in seq(1,61, by = 10)){
-  print(kable(head(COVID_BGC[,c(1,(i+1):(i+10))]), digits = 2, 
-      caption = "Tabla 1. Vacunación de BCG por países y muertes por COVID-19",
-      format = "simple"))
+for (i in seq(1, 61, by = 10)) {
+    print(
+        kable(
+            head(COVID_BGC[, c(1, (i + 1):(i + 10))]),
+            digits = 2,
+            caption = "Tabla 1. Vacunación de BCG por países y muertes por COVID-19",
+            format = "simple"
+        )
+    )
 }
 
 ```
 
 
 ```{r cormat}
-cormat <- cor(COVID_BGC %>% select(-c("country_name", "alpha_3_code", "date_first_death", "date_fifth_death", 43:71)) %>% na.omit())
+cormat <-
+    cor(COVID_BGC %>% select(
+        -c(
+            "country_name",
+            "alpha_3_code",
+            "date_first_death",
+            "date_fifth_death",
+            43:71
+        )
+    ) %>% na.omit())
 ```
 
 
 ```{r plot}
 cormat2 <- cormat
-cormat2[upper.tri(cormat2)] <- NA #Para visualizar solamente una vez las correlaciones
+cormat2[upper.tri(cormat2)] <-
+    NA #Para visualizar solamente una vez las correlaciones
 cormat2 <- melt(round(cormat2, 2)) #Formato para poder usar ggplot
-ggplot(cormat2, aes(x=Var1, y=Var2, fill=value)) + geom_tile()+scale_fill_continuous(type = "viridis")
+ggplot(cormat2, aes(x = Var1, y = Var2, fill = value)) + geom_tile() + scale_fill_continuous(type = "viridis")
 
-fig <- plot_ly(x = colnames(cormat), y = colnames(cormat), z = cormat, type = "heatmap")
+fig <-
+    plot_ly(
+        x = colnames(cormat),
+        y = colnames(cormat),
+        z = cormat,
+        type = "heatmap"
+    )
 
 fig
 ```
 ```{r dotplot}
-ggplot(COVID_BGC, aes(x = dpm_50_d, y=`strain2005-2010`, label = country_name))+
-  geom_jitter(position = position_jitter(seed = 1))+
-  geom_label_repel(size = 2,position = position_jitter(seed = 1))+
-  xlim(c(-100,800))
+ggplot(COVID_BGC,
+       aes(x = dpm_50_d, y = `strain2005-2010`, label = country_name)) +
+    geom_jitter(position = position_jitter(seed = 1)) +
+    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
+    xlim(c(-100, 800))
 
 ```
 
+```{r, echo=FALSE}
+# Este pedazo de codigo es para exportar solamente el code a .R
+#knitr::purl("PEC3.Rmd")
+```
