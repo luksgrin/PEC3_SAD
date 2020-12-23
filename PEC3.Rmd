@@ -27,6 +27,8 @@ library(ggrepel)
 
 El objetivo de nuestro trabajo es estudiar si existe alguna relación entre la vacuna BCG (*Bacillus de Calmette y Guérin*) para la tuberculosis y los datos de mortalidad de la COVID-19 en algunos países, ya que se hay [estudios](https://edition.cnn.com/2020/04/09/health/tuberculosis-bcg-vaccine-coronavirus/index.html) que sugieren esta vacuna incrementa las capacidades inmunitarias de la población, hecho que se ve en el número reducido de fallecimientos por COVID-19 en ciertos países. Mediante los conjuntos de datos de [*BCG*](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-BCG_strain_per_country-1Nov2020.csv) y de [mortalidad por COVID-19](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv) cedidos por [*The BCG world atlas*](http://www.bcgatlas.org/) y por [BCG - COVID-19 AI Challenge](https://www.kaggle.com/bcgvaccine/hackathon) de Kaggle, vamos a intentar desvelar dichas relaciones.
 
+Los ficheros en cuestión son del tipo ```csv``, así que son fácilmente importables a data frames en``R``:
+
 ```{r load data, warning=F, message=F}
 # Cargamos ambos datasets. Añadir explicación de qué contienen.
 
@@ -110,7 +112,7 @@ El contenido de las variables ``BCG_strain`` y ``COVID_noformat`` es el siguient
 |                                                            | stringency\_index\_145\_days\_after\_fifth\_death    |
 |                                                            | stringency\_index\_150\_days\_after\_fifth\_death    |
 
-Una visualización preliminar de estos datos revela que son todos del tipo ``string`` y que además muchas columnas sin datos (columnas cuyo único contenido es ``NULL``), por lo tanto llevaremos a cabo una limpieza de los mismos y además llevaremos a cabo un cambio de tipo de variable para que las manipulaciones posteriores sean más cómodas.
+Una visualización preliminar de estos datos revela que son todos del tipo ``string`` y que además muchas columnas sin datos (columnas cuyo único contenido es ``NULL``), por lo tanto llevaremos a cabo una limpieza de los mismos además de cambios de tipo de variables para que las manipulaciones posteriores sean más cómodas. Los detalles se muestran en el siguiente bloque de código:
 
 ```{r clean data}
 # Limpiar datos de BCG
@@ -196,6 +198,61 @@ for (i in seq(1, 61, by = 10)) {
     )
 }
 
+```
+
+Mediante esta tabla llevaremos a cabo nuestros análisis. A continuación mostramos la estructura de la misma:
+```{r}
+str(COVID_BGC)
+```
+
+#### **Hagamos unos análisis descriptivos:**
+
+**a)** ¿Cuál es la media para la variable *"deaths per million 150 days after fifth death"* (representado por ```dpm_150_d``) para el conjunto de países que la han medido? ¿Y para la variable *"stringency index 150 days after fifth death"*?
+```{r}
+m1 <- mean(na.omit(COVID_BGC$dpm_150_d))
+m2 <- mean(na.omit(COVID_BGC$si_150_d))
+cat(sprintf("La media para dpm_150_d es %.2f\n", m1))
+cat(sprintf("La media para si_150_d es %.2f\n", m2))
+```
+**b)** ¿Cuáles son los países cuyo valor para *"deaths per million 150 days after fifth death"* (en caso de estar presente) se encuentra por debajo de la media? ¿Y para la variable *"stringency index 150 days after fifth death"*?
+```{r}
+cat(
+  "Los países cuyo valor de dpm_150_d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, dpm_150_d < m1)$country_name, collapse = ', '),
+  "\n\n"
+)
+cat(
+  "Los países cuyo valor de si_150_d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, si_150_d < m2)$country_name, collapse = ', ')
+)
+```
+**c)** ¿Cuáles son los países que cumplen ambas condiciones del apartado anterior?
+```{r}
+cat(
+  "Los países cuyos valores de dpm_150_d y de si_150_d son menores que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, (dpm_150_d < m1) &
+                 (si_150_d < m2))$country_name, collapse = ', ')
+)
+```
+**d)** ¿Cuáles son los países que han tenido campaña de vacunación de la vacuna *BCG* más reciente y que su la media de mortalidad a los 150 días es menor que la media?
+```{r}
+cat(
+  "Los países cuyos valores de dpm_150_d son menores que la media del dataset y que además han tenido una reciente campaña de vacunación de la vacuna BCG son:\n\n",
+  paste(subset(
+    COVID_BGC, (dpm_150_d < m1) &
+      (`strain2015-2020` == 1)
+  )$country_name, collapse = ', ')
+)
+```
+
+#### **Hagamos un poco de estadística descriptiva:**
+
+**a)** Resumen estadístico de las variables
+
+```{r}
+# Obvimente hay variables en las que no tiene sentido hacer resumen estadístico, como el alpha_3_code, las strains... Pero por ahora lo voy a dejar
+summary(COVID_BGC)
+# Igual habría que dibujar histogramas de tasas de muerte, y de vacunas puestas. No sé la verdad.
 ```
 
 
