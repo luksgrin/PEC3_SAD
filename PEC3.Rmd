@@ -25,12 +25,12 @@ library(kableExtra)
 library(ggrepel)
 ```
 
-El objetivo de nuestro trabajo es estudiar si existe alguna relación entre la vacuna BCG (*Bacillus de Calmette y Guérin*) para la tuberculosis y los datos de mortalidad de la COVID-19 en algunos países, ya que se hay [estudios](https://edition.cnn.com/2020/04/09/health/tuberculosis-bcg-vaccine-coronavirus/index.html) que sugieren esta vacuna incrementa las capacidades inmunitarias de la población, hecho que se ve en el número reducido de fallecimientos por COVID-19 en ciertos países. Mediante los conjuntos de datos de [*BCG*](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-BCG_strain_per_country-1Nov2020.csv) y de [mortalidad por COVID-19](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv) cedidos por [*The BCG world atlas*](http://www.bcgatlas.org/) y por [BCG - COVID-19 AI Challenge](https://www.kaggle.com/bcgvaccine/hackathon) de Kaggle, vamos a intentar desvelar dichas relaciones.
+El objetivo de nuestro trabajo es estudiar si existe alguna relación entre la vacuna BCG (*Bacillus de Calmette y Guérin*) para la tuberculosis y los datos de mortalidad de la COVID-19 en algunos países, ya que hay [estudios](https://edition.cnn.com/2020/04/09/health/tuberculosis-bcg-vaccine-coronavirus/index.html) que sugieren esta vacuna incrementa las capacidades inmunitarias de la población, hecho que se ve en el número reducido de fallecimientos por COVID-19 en ciertos países. Mediante los conjuntos de datos de [*BCG*](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-BCG_strain_per_country-1Nov2020.csv) y de [mortalidad por COVID-19](https://www.kaggle.com/bcgvaccine/hackathon?select=task_2-COVID-19-death_cases_per_country_after_fifth_death-till_22_September_2020.csv) cedidos por [*The BCG world atlas*](http://www.bcgatlas.org/) y por [BCG - COVID-19 AI Challenge](https://www.kaggle.com/bcgvaccine/hackathon) de Kaggle, vamos a intentar desvelar dichas relaciones.
 
 Los ficheros en cuestión son del tipo ```csv``, así que son fácilmente importables a data frames en``R``:
 
 ```{r load data, warning=F, message=F}
-# Cargamos ambos datasets. Añadir explicación de qué contienen.
+# Cargamos ambos datasets,
 
 BCG_strain <-
   read_csv("task_2-BCG_strain_per_country-1Nov2020.csv")
@@ -128,7 +128,6 @@ BCG_strain <- BCG_strain[, apply(!is.na(BCG_strain), 2, all)]
 # NA - Este dato es desconocido, hasta ahora Unknown
 
 BCG_strain_no_strain <- BCG_strain
-
 # Transformo los valores de las columnas
 BCG_strain_no_strain[, -1] <-
     sapply(BCG_strain_no_strain[, -1], function(x) {
@@ -142,7 +141,37 @@ BCG_strain_no_strain[, -1] <-
         }
         return(as.integer(a)) # Cambio las columnas a integer
     })
+BCG_no_strain_no_NA <- na.omit(BCG_strain_no_strain)
 
+#Versiñon más compacta del dataframe, sin datos a diferentes días o años.
+#Agrupando los datos de vacunas en tres columnas:
+#periods_with_vaccine - incluye el número de periodos estudiados con vacunación activa
+#vaccination_2020_2015 - el único periodo con el que nos quedamos, el último
+#first_vaccine_year - de los años estudiados, el primero con campaña de vacunación. En el caso de no tener vacunación, este será el último año estudiado (2020)
+#last_vaccine_year - de los años estudiados, el último con campaña de vacunación. En el caso de no tener vacunación, este será el primer año estudiado (1950)
+
+#Creamos el nuevo dataframe simplificado
+BCG_no_strain_simple <- data.frame(
+  "country_name" = BCG_no_strain_no_NA$country_name,
+  "periods_with_vaccine" = BCG_no_strain_no_NA%>%
+  .[2:ncol(.)] %>% rowSums(), #sumamos los periodos con vacuna
+  "vaccination_2020_2015" = BCG_no_strain_no_NA$`mandatory_bcg_strain_2015-2020`)
+
+#Añadimos el último año con vacunación
+BCG_no_strain_simple$last_vaccine_year <- names(BCG_no_strain_no_NA[2:ncol(BCG_no_strain_no_NA)])[max.col(BCG_no_strain_no_NA[2:ncol(BCG_no_strain_no_NA)] != 0, 'first')] %>%
+  substring(nchar(.)-3, nchar(.))%>%
+  as.numeric()
+
+#Añadimos el primer año con vacunación
+BCG_no_strain_simple$first_vaccine_year <- names(BCG_no_strain_no_NA[2:ncol(BCG_no_strain_no_NA)])[max.col(BCG_no_strain_no_NA[2:ncol(BCG_no_strain_no_NA)] != 0, 'last')] %>%
+  substring(nchar(.)-8, nchar(.)-5)%>%
+  as.numeric()
+
+
+#El próximo código es necesario para que los países sin campaña de vacunación no obtengan los mejores valores. El código utilizado para obtener el último o primer año de vacunación les favorece, ya que obtiene el primer o el último índice de aquellos valores distintos de 0. Como en su caso no hay ningún valor distinto a 0, este sería simplemente el primero o el último. Para arreglar esto, establezco manualmente que tengan el último año de vacunación más bajo posible y el primer año de vacunación más alto posible.
+BCG_no_strain_simple[BCG_no_strain_simple$periods_with_vaccine == 0,]$last_vaccine_year = 1950
+
+BCG_no_strain_simple[BCG_no_strain_simple$periods_with_vaccine == 0,]$first_vaccine_year = 2020
 ####################################################################################
 
 # Limpiar datos de COVID
@@ -169,34 +198,25 @@ COVID_Na_df[, c("date_first_death")] <-
 COVID_Na_df[, -c(1, 2, 3, 4)] <-
     sapply(COVID_Na_df[, -c(1, 2, 3, 4)], as.numeric)
 
+
+COVID_Na_df2 <- data.frame("country_name" = COVID_Na_df$country_name,
+                           "dpm_100d" = COVID_Na_df$deaths_per_million_100_days_after_fifth_death,
+                           "si_100d" = COVID_Na_df$stringency_index_100_days_after_fifth_death)
 ################################################################################################
 
 # Junto ambos dataframes en uno sólo.
 COVID_BGC <-
-    left_join(BCG_strain_no_strain, COVID_Na_df, by = "country_name")
+    inner_join(BCG_no_strain_simple, COVID_Na_df2, by = "country_name")
 
-# Reduzco los colnames, son my largos
-colnames(COVID_BGC) <-
-    gsub("mandatory_bcg_strain_", "strain", colnames(COVID_BGC)) %>%
-    gsub("deaths_per_million", "dpm", .) %>%
-    gsub("days_after_fifth_death", "d", .) %>%
-    gsub("stringency_index", "si", .)
 ```
 
 Nuestra tabla resultante es la siguiente:
 
 ```{r print_table, results="asis", echo=FALSE}
-opts <- options(knitr.kable.NA = "")
-for (i in seq(1, 61, by = 10)) {
-    print(
-        kable(
-            head(COVID_BGC[, c(1, (i + 1):(i + 10))]),
-            digits = 2,
+
+kable(head(COVID_BGC), digits = 2,
             caption = "Tabla 1. Vacunación de BCG por países y muertes por COVID-19",
-            format = "simple"
-        )
-    )
-}
+            format = "simple")
 
 ```
 
@@ -207,40 +227,41 @@ str(COVID_BGC)
 
 #### **Hagamos unos análisis descriptivos:**
 
-**a)** ¿Cuál es la media para la variable *"deaths per million 150 days after fifth death"* (representado por ```dpm_150_d``) para el conjunto de países que la han medido? ¿Y para la variable *"stringency index 150 days after fifth death"*?
+**a)** ¿Cuál es la media para la variable *"deaths per million 150 days after fifth death"* (representado por ```dpm_100d``) para el conjunto de países que la han medido? ¿Y para la variable *"stringency index 150 days after fifth death"*?
 ```{r}
-m1 <- mean(na.omit(COVID_BGC$dpm_150_d))
-m2 <- mean(na.omit(COVID_BGC$si_150_d))
-cat(sprintf("La media para dpm_150_d es %.2f\n", m1))
-cat(sprintf("La media para si_150_d es %.2f\n", m2))
+m1 <- mean(na.omit(COVID_BGC$dpm_100d))
+m2 <- mean(na.omit(COVID_BGC$si_100d))
+cat(sprintf("La media para dpm_100d es %.2f\n", m1))
+cat(sprintf("La media para si_100d es %.2f\n", m2))
 ```
-**b)** ¿Cuáles son los países cuyo valor para *"deaths per million 150 days after fifth death"* (en caso de estar presente) se encuentra por debajo de la media? ¿Y para la variable *"stringency index 150 days after fifth death"*?
+**b)** ¿Cuáles son los países cuyo valor para *"deaths per million 100 days after fifth death"* (en caso de estar presente) se encuentra por debajo de la media? ¿Y para la variable *"stringency index 100 days after fifth death"*?
 ```{r}
 cat(
-  "Los países cuyo valor de dpm_150_d es menor que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, dpm_150_d < m1)$country_name, collapse = ', '),
+  "Los países cuyo valor de dpm_100d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, dpm_100d < m1)$country_name, collapse = ', '),
   "\n\n"
 )
 cat(
-  "Los países cuyo valor de si_150_d es menor que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, si_150_d < m2)$country_name, collapse = ', ')
+  "Los países cuyo valor de si_100d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, si_100d < m2)$country_name, collapse = ', ')
 )
 ```
 **c)** ¿Cuáles son los países que cumplen ambas condiciones del apartado anterior?
 ```{r}
 cat(
-  "Los países cuyos valores de dpm_150_d y de si_150_d son menores que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, (dpm_150_d < m1) &
-                 (si_150_d < m2))$country_name, collapse = ', ')
+  "Los países cuyos valores de dpm_100d y de si_100d son menores que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, (dpm_100d < m1) &
+                 (si_100d < m2))$country_name, collapse = ', ')
 )
 ```
 **d)** ¿Cuáles son los países que han tenido campaña de vacunación de la vacuna *BCG* más reciente y que su la media de mortalidad a los 150 días es menor que la media?
 ```{r}
+
 cat(
-  "Los países cuyos valores de dpm_150_d son menores que la media del dataset y que además han tenido una reciente campaña de vacunación de la vacuna BCG son:\n\n",
+  "Los países cuyos valores de dpm_100d son menores que la media del dataset y que además han tenido una reciente campaña de vacunación de la vacuna BCG son:\n\n",
   paste(subset(
-    COVID_BGC, (dpm_150_d < m1) &
-      (`strain2015-2020` == 1)
+    COVID_BGC, (dpm_100d < m1) &
+      (vaccination_2020_2015 == 1)
   )$country_name, collapse = ', ')
 )
 ```
@@ -254,19 +275,57 @@ cat(
 summary(COVID_BGC)
 # Igual habría que dibujar histogramas de tasas de muerte, y de vacunas puestas. No sé la verdad.
 ```
+**b)** Distribución de las variables
+
+Observemos cómo se distribuyen los datos de *"deaths per million 100 days after fifth death"* y de
+*"stringency index 100 days after fifth death"*
+
+Mediante el gráfico de densidad podemos ver la distribución de dos variables continuas como son el número de muertes por millón y el stringency index. 
+```{r}
+ggplot(COVID_BGC, aes(x= dpm_100d, fill = "b"))+geom_density()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Distribución de muertes por millón a los 100 días de la quinta muerte")
+ggplot(COVID_BGC, aes(x= si_100d, fill = "b"))+geom_density()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Distribución del stringency index por millón a los 100 días de la quinta muerte")
+
+```
+
+Podemos comprobar la distribución de una variable categórica como es la presencia o no de campaña de vacunación entre 2015 y 2020 con un gráfico de barras. 
+
+```{r}
+ggplot(COVID_BGC, aes(x= vaccination_2020_2015, fill = "b"))+geom_bar()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Presencia de una campaña de vacunación entre 2015 y 2020")
+```
+También podemos comprobar qué distribución sigue una variable binomial, es decir, el número de periodos con vacuna de 9 periodos posibles. Esta es una variable binomial ya que es resultado de n=9 observaciones con resultado de éxito (hay vacunación) o fracaso (no lo hay), Para observar su distribución podemos utilizar un histograma o un gráfico de barras. 
+
+```{r}
+ggplot(COVID_BGC, aes(x= periods_with_vaccine, fill = "b"))+geom_bar()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Número de décadas o lustros con campaña de vacunación activa")
+```
+Dos variables muy diferentes son las que se refieren al primer y último año de vacunación. Al tratarse de años, podrían seguir una distribución uniforme. Pero es lógico pensar que estos puedan tener una distribución simétrica semejante a la normal, ya que los países tienden a comenzar campañas de vacunación en momentos parecidos. Veámos qué distribución tienen los datos con un gráfico de barras.
+```{r}
+ggplot(COVID_BGC, aes(x=last_vaccine_year, fill = "b"))+geom_bar()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Último año con campaña de vacunación activa")
+ggplot(COVID_BGC, aes(x=first_vaccine_year, fill = "b"))+geom_bar()+
+  theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
+  ggtitle("Primer año con campaña de vacunación activa")
+```
+```
+
+
+
+
+
+
 
 
 ```{r cormat}
 cormat <-
-    cor(COVID_BGC %>% select(
-        -c(
-            "country_name",
-            "alpha_3_code",
-            "date_first_death",
-            "date_fifth_death",
-            43:71
-        )
-    ) %>% na.omit())
+    cor(COVID_BGC[2:ncol(COVID_BGC)]%>%na.omit())
 ```
 
 
@@ -289,11 +348,26 @@ fig
 ```
 ```{r dotplot}
 ggplot(COVID_BGC,
-       aes(x = dpm_50_d, y = `strain2005-2010`, label = country_name)) +
+       aes(x = dpm_100d, y = vaccination_2020_2015, label = country_name)) +
+    geom_jitter(position = position_jitter(seed = 1)) +
+    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
+    xlim(c(-100, 800))
+ggplot(COVID_BGC,
+       aes(x = dpm_100d, y = last_vaccine_year, label = country_name)) +
     geom_jitter(position = position_jitter(seed = 1)) +
     geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
     xlim(c(-100, 800))
 
+ggplot(COVID_BGC,
+       aes(x = dpm_100d, y = first_vaccine_year, label = country_name)) +
+    geom_jitter(position = position_jitter(seed = 1)) +
+    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
+    xlim(c(-100, 800))
+
+```
+```{r}
+model <- lm(dpm_100d ~ vaccination_2020_2015 + first_vaccine_year + last_vaccine_year, COVID_BGC)
+summary(model)
 ```
 
 ```{r, echo=FALSE}
