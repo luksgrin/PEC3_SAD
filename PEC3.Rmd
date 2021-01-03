@@ -314,61 +314,263 @@ ggplot(COVID_BGC, aes(x=first_vaccine_year, fill = "b"))+geom_bar()+
   theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
   ggtitle("Primer año con campaña de vacunación activa")
 ```
+
+Para trabajar los datos de manera efectiva y siguiendo la metodología de la *PEC 2*, escribo funciones
+específicas para obtener información de nuestro conjunto de datos. 
+
+Por ejemplo, desarrollo una función para obtener el último año en el que se administró la vacuna BCG en
+un determinado país.
+
+```{r}
+get_last_vaccine_year <- function(country){
+  #Devuelve el último año con vacuna de un país country. Argumentos:
+  #Country = string indicando el nombre del país
+  
+  #Comprobamos si la string pertenece a los paises estudiados. Si no, imprimimos un mensaje y detenemos la función.
+  if (sapply(COVID_BGC$country_name, function(x){x==country})%>% sum()==0){
+    print("El país especificado no está en la lista")
+  }else{
+    #Si está incluida, obtengo su last vaccine year.
+    COVID_BGC[COVID_BGC$country_name == country,]$last_vaccine_year  
+  }
+}
+get_last_vaccine_year("Spain")
+get_last_vaccine_year("URSS") #Comprobamos que da error, al no estar incluído
+
 ```
 
+De manera parecida, podemos tratar de comprobar si, en un año determinado, hubo campaña de vacunación en un
+determinado país.
 
+```{r}
+was_there_a_vaccine <- function(country, year){
+  #Devuelve un valor lógico dependiendo de si el año especificado hubo o no vacuna en un país. Argumentos:
+  #Country = string indicando el nombre del país
+  #year = valor numérico indicando el año en duda
+  
+  
+  #En este caso, comrpobamos si el país está en la lista de paises y si el añi está incluido en los años 
+  #estudiados.
+  if (sapply(COVID_BGC$country_name, function(x){x==country})%>% sum()==0){
+    print("El país especificado no está en la lista")
+  }else if(year > max(COVID_BGC$last_vaccine_year) | year < min(COVID_BGC$first_vaccine_year) ){
+    print("El año especificado está fuera del rango")
+  }else{
+    #Si todo se cumple, estudiaremos si el año se encuentra en el periodo en el que hubo vacunación.
+    last <- COVID_BGC[COVID_BGC$country_name == country,]$last_vaccine_year 
+    first <- COVID_BGC[COVID_BGC$country_name == country,]$first_vaccine_year
+    if (last > year && year > first){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+}
 
+was_there_a_vaccine(country = "Spain", year = 1975)
+was_there_a_vaccine("URSS", 1960)
+was_there_a_vaccine("Spain", 2022)
+```
+## **Estudio de los datos: Machine learning**
 
+En el siguiente paso, estudiaremos los datos presentados, intentando demostrar alguna relación entre las variables
+estudiadas.
 
+### Correlación
+Como primer paso, buscaremos relaciones lineales entre las variables. Para ello, podemos computar una matriz de 
+correlaciones entre las variables. Si encontramos alguna correlación podemos utilizarla para realizar un modelo
+de regresión lineal.
 
-
+Para comenzar, computamos la matriz de correlaciones, omitiendo los valores NA y seleccionando todas las variables
+menos el nombre del país.
 
 ```{r cormat}
+df <- COVID_BGC[2:ncol(COVID_BGC)] %>% na.omit()
 cormat <-
-    cor(COVID_BGC[2:ncol(COVID_BGC)]%>%na.omit())
+    cor(df)
+cormat
 ```
-
+Y visualizamos la matriz usando ggplot geom_tile.
 
 ```{r plot}
 cormat2 <- cormat
 cormat2[upper.tri(cormat2)] <-
     NA #Para visualizar solamente una vez las correlaciones
 cormat2 <- melt(round(cormat2, 2)) #Formato para poder usar ggplot
-ggplot(cormat2, aes(x = Var1, y = Var2, fill = value)) + geom_tile() + scale_fill_continuous(type = "viridis")
+ggplot(cormat2, aes(x = Var1, y = Var2, fill = value)) + geom_tile() + scale_fill_continuous(type = "viridis")+
+  theme(axis.text.x = element_text(angle = 90))+xlab("")+ylab("")+labs(fill = "Correlación")
 
-fig <-
-    plot_ly(
-        x = colnames(cormat),
-        y = colnames(cormat),
-        z = cormat,
-        type = "heatmap"
-    )
-
-fig
 ```
-```{r dotplot}
-ggplot(COVID_BGC,
-       aes(x = dpm_100d, y = vaccination_2020_2015, label = country_name)) +
-    geom_jitter(position = position_jitter(seed = 1)) +
-    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
-    xlim(c(-100, 800))
-ggplot(COVID_BGC,
-       aes(x = dpm_100d, y = last_vaccine_year, label = country_name)) +
-    geom_jitter(position = position_jitter(seed = 1)) +
-    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
-    xlim(c(-100, 800))
+En el anterior gráfico vemos diferentes variables relacionadas de manera lineal. Algunas de las relaciones se deben
+a que son variables relacionadas y, por lo tanto, no nos aportan nueva información ya que son relaciones ya conocidas.
+Como las relaciones entre la vacunación en 2020-2015 y el número de periodos con vacuna o el último año de vacunación;
+o, en definitiva, cualquier relación entre las variables que tratan de los años de vacunación. 
 
-ggplot(COVID_BGC,
-       aes(x = dpm_100d, y = first_vaccine_year, label = country_name)) +
-    geom_jitter(position = position_jitter(seed = 1)) +
-    geom_label_repel(size = 2, position = position_jitter(seed = 1)) +
-    xlim(c(-100, 800))
+Las relaciones que buscamos son aquellas que relacionen algún dato sobre la campaña de vacunación y el número de 
+muertes por millón de habitantes. Para este caso, vemos que existen correlacione negativas entre el número de muertes
+y el último año de vacunación, además de con la vacunación entre 2020 y 2015.
 
+Revisamos los valores anteriores podemos ver que estas correlaciones son de -0.55 (dpm_100d, vaccination_2020_2015) y 
+-0.6 (dpm_100d, last_vaccine_year).
+
+### Regresión lineal
+
+Con los datos anteriores podemos pasar a construir un modelo de regresión lineal en el que la variable dependiente 
+sea el número de muertes y las variables dependientes sean las dos variables mencionadas antes.
+
+En primer lugar, utilizando la vacunación entre 2015 y 2020.
+```{r}
+modelo <- lm(dpm_100d ~ vaccination_2020_2015, data = df)
+plot(COVID_BGC$vaccination_2020_2015, COVID_BGC$dpm_100d ,xlab="Vacuna entre 2015 y 2020",ylab="Muertes por millón de habitantes")
+abline(lm(dpm_100d ~ vaccination_2020_2015, df))
 ```
 ```{r}
-model <- lm(dpm_100d ~ vaccination_2020_2015 + first_vaccine_year + last_vaccine_year, COVID_BGC)
-summary(model)
+summary(modelo)
 ```
+
+En segundo lugar, el último año de vacunación.
+```{r}
+modelo <- lm(dpm_100d ~ last_vaccine_year,data = df)
+plot(COVID_BGC$last_vaccine_year, COVID_BGC$dpm_100d ,xlab="Último año con vacunación",ylab="Muertes por millón de habitantes")
+abline(lm(dpm_100d ~ last_vaccine_year, df)
+```
+```{r}
+summary(modelo)
+```
+Vemos que el último modelo es mejor, ya que tiene un menor error y un mayor R cuadrado.
+
+Podemos construir un modelo múltiple también, utilizand ambos predictores.
+```{r}
+modelo <- lm(dpm_100d ~ last_vaccine_year+vaccination_2020_2015 ,data = df)
+summary(modelo)
+```
+En este modelo observamos un ligreo incremento en R cuadrado y que el efecto del predictor vaccination_2020_2015 no
+es significativo. Podemos considerar, por lo tanto, que el modelo que incluye sólo la variable last_vaccine_year es
+mejor.
+
+Como última comporbación, podemos observar un modelo que incluya todas las variables del conjunto de datos.
+```{r}
+modelo <- lm(dpm_100d ~ ., data = df)
+summary(modelo)
+```
+Vemos, por lo tanto, que este es el modelo que mejor predice las muertes por millón. Siendo efectivos los predictores:
+primer año de vacunación, último año de vacunación y el stringency_index, que indica el nivel de las restricciones
+adoptadas.
+
+Computemos el AIC para comprobar:
+```{r}
+step(modelo)
+```
+Con esto confirmamos lo dicho, el modelo dpm_100d ~ last_vaccine_year + first_vaccine_year + si_100d
+es el mejor. 
+
+```{r}
+modelo<- lm(formula = dpm_100d ~ last_vaccine_year + first_vaccine_year + 
+    si_100d, data = df)
+
+summary(modelo)
+```
+Es interesante observar que la relación entre el nivel de restricciones y el número de muertes es positiva. Debido
+a que el Estimate de esta variable es positivo. Esto indicaría que unas mayores restricciones predicen un mayor número
+de muertes. Basta con conocer el caso para darse cuenta de que la relación es al contrario: un mayor número de muertes
+indica un momento peor en la epidemia y una escalada de las restricciones. 
+
+
+### ANOVA
+
+Pasamos a realizar un test anova entre las variables muertes por millón y vacunación entre 2015 y 2020. 
+Lo mismo con las variables muertes por millón y último año de vacunación.
+
+
+```{r}
+aggregate(dpm_100d ~ last_vaccine_year, data = df, mean)
+aggregate(dpm_100d ~ vaccination_2020_2015, data = df, mean)
+```
+Observamos que la diferencia en las medias de muertes por millón en los países con distinta vacunación entre 2015
+y 2020 es alta. También observamos diferencias, aunque menos claras, dependiendo del último año de vacunación.
+
+Pasaremos, ahora, a comprobar la normalidad de la variable.
+
+```{r}
+by(df,
+   df %>% .$vaccination_2020_2015,
+   FUN=function(x){nortest::lillie.test(x$dpm_100d)})
+```
+El test nos indica que podemos asumir una distribución normal de la variable en los países sin vacuna entre 2015 y
+2020 pero no en los países con vacuna en estos años, ya que el resultado del test ha sido un p-value por debajo de 
+0.05.
+
+Comprobaremos lo mismo para la variable last_vaccine_year.
+
+```{r}
+by(df,
+   df %>% .$last_vaccine_year,
+   FUN=function(x){nortest::lillie.test(x$dpm_100d)})
+```
+
+En este caso, la comparación entre grupos es imposible ya que no todos los grupos incluyen más de 4 países.
+Dado que la muestra no cumple el requisito de normalidad, no es adecuado comparar las medias utilizando un test
+ANOVA.
+
+### Clustering
+
+Pasamos al clustering.
+
+Dado que el clustering se basa en la vectorización de las observaciones y calcular la distancia entre estas, decidimos utilizar 
+todos los datos disponibles para agrupar los datos. Utilizamos, por lo tanto, un nuevo dataframe que incluye los datos de 
+vacunación lustro a lustro, de muertes en intervalos de tiempo y de stringency index en intervalos de tiempo.
+
+```{r}
+
+COVID_BGC2 <- inner_join(BCG_no_strain_no_NA, COVID_Na_df) %>% na.omit()
+df2 <- COVID_BGC2[2:ncol(COVID_BGC2)] 
+dist_COV <- dist(df2, "euclidean") #Calculamos la distancia euclidea
+hc_COV <- hclust(dist_COV, "complete") #Clasificamos en clusters
+#hc_COV$labels <- COVID_BGC2[hc_COV$labels,]$country_name
+plot( hc_COV, labels = COVID_BGC2$country_name,cex=0.6,hang=-1, main ="Dendograma de cluster") #Visualizar
+```
+Computando la distancia euclidea vemos que existen dos grandes clusters, uno con países mucho más parecidos, que presentan menos
+muertes y una vacunación similar. Y otro en el que encontramos más variabilidad y los países más golpeados por la pandemia.
+```{r}
+hc_ag_COV <- cluster::agnes(df2,method = "complete") #Clasificamos con agnes
+cluster::pltree(hc_ag_COV,cex=0.6,hang=-1, main ="Dendograma de agnes", labels = COVID_BGC2$country_name) #Visualizar
+```
+
+Muy similares son los datos de agnes.
+```{r}
+print(paste("el coeficiente de aglomeración de agnes es", hc_ag_COV$ac))
+```
+
+```{r}
+hc_di_COV <- cluster::diana(df2) #Clasificamos por división
+cluster::pltree(hc_di_COV,cex=0.6,hang=-1, main ="Dendograma de diana", labels = COVID_BGC2$country_name) #Visualizar
+```
+Y muy similares los de diana. 
+En todos ellos, España tiene una gran similaridad con Italia, Suecia y Reino Unido. Los paises europeos con mayor número de muertes.
+
+```{r}
+print(paste("el coeficiente de division de diana es", hc_di_COV$dc))
+```
+```{r}
+#Visualizamos los clusters por colores.
+cluster::pltree(hc_di_COV,hang=-1,cex=0.6, labels = COVID_BGC2$country_name)
+rect.hclust(hc_di_COV,k=4,border=2:10)
+```
+Si observamos los cuatro clusters principales en diana vemos que una mayoría de países con una baja incidencia durante la primera
+ola de la pandemia se encuentran en el cluster rojo, a poca distancia. Luego vemos un cluster compartido por Colombia, Portugal,
+Suiza y Méjico; y otros dos clusters más. Es posible asumir que estas distancias, por cómo han sido computadas, se deben a 
+diferencias en el aumento de las muertes por coronavirus, en las restricciones adoptadas y en la vacunación de BCG.
+
+```{r}
+library(umap)
+
+
+umap <- umap(as.matrix(dist_COV))
+
+ggplot(aes(x = umap$data))
+```
+
+
 
 ```{r, echo=FALSE}
 # Este pedazo de codigo es para exportar solamente el code a .R
