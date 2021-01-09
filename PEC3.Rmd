@@ -143,7 +143,7 @@ BCG_strain_no_strain[, -1] <-
     })
 BCG_no_strain_no_NA <- na.omit(BCG_strain_no_strain)
 
-#Versiñon más compacta del dataframe, sin datos a diferentes días o años.
+#Versión más compacta del dataframe, sin datos a diferentes días o años.
 #Agrupando los datos de vacunas en tres columnas:
 #periods_with_vaccine - incluye el número de periodos estudiados con vacunación activa
 #vaccination_2020_2015 - el único periodo con el que nos quedamos, el último
@@ -225,46 +225,32 @@ Mediante esta tabla llevaremos a cabo nuestros análisis. A continuación mostra
 str(COVID_BGC)
 ```
 
+Podemos ver que nuestro data frame tiene 65 observacones y 7 columnas. Las columnas son:
+
+- **country_name**: El nombre del país en cuestión.
+- **periods_with_vaccine**: el número de periodos estudiados con vacunación activa.
+- **vaccination_2020_2015**: el único periodo considerado en este estudio (el último).
+- **last_vaccine_year**: de los años estudiados, el último con campaña de vacunación. En el caso de no tener vacunación, este será el primer año estudiado (1950).
+- **first_vaccine_year**: de los años estudiados, el primero con campaña de vacunación. En el caso de no tener vacunación, este será el último año estudiado (2020)
+- **dpm_100d**: muertes por millón tras haber pasado 100 días desde la quinta muerte registrada.
+- **si_100d**: "stringency index" (indicador que va de 0 a 100 que ide la severidad de las medidas tomadas por el país para aplacar la pandemia) tras haber pasado 100 días desde la quinta muerte registrada.
+
 #### **Hagamos unos análisis descriptivos:**
 
-**a)** ¿Cuál es la media para la variable *"deaths per million 150 days after fifth death"* (representado por ```dpm_100d``) para el conjunto de países que la han medido? ¿Y para la variable *"stringency index 150 days after fifth death"*?
-```{r}
-m1 <- mean(na.omit(COVID_BGC$dpm_100d))
-m2 <- mean(na.omit(COVID_BGC$si_100d))
-cat(sprintf("La media para dpm_100d es %.2f\n", m1))
-cat(sprintf("La media para si_100d es %.2f\n", m2))
-```
-**b)** ¿Cuáles son los países cuyo valor para *"deaths per million 100 days after fifth death"* (en caso de estar presente) se encuentra por debajo de la media? ¿Y para la variable *"stringency index 100 days after fifth death"*?
-```{r}
-cat(
-  "Los países cuyo valor de dpm_100d es menor que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, dpm_100d < m1)$country_name, collapse = ', '),
-  "\n\n"
-)
-cat(
-  "Los países cuyo valor de si_100d es menor que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, si_100d < m2)$country_name, collapse = ', ')
-)
-```
-**c)** ¿Cuáles son los países que cumplen ambas condiciones del apartado anterior?
-```{r}
-cat(
-  "Los países cuyos valores de dpm_100d y de si_100d son menores que la media del dataset son:\n\n",
-  paste(subset(COVID_BGC, (dpm_100d < m1) &
-                 (si_100d < m2))$country_name, collapse = ', ')
-)
-```
-**d)** ¿Cuáles son los países que han tenido campaña de vacunación de la vacuna *BCG* más reciente y que su la media de mortalidad a los 150 días es menor que la media?
-```{r}
+**a)** ¿Existen valores nulos en el conjunto de datos?
 
-cat(
-  "Los países cuyos valores de dpm_100d son menores que la media del dataset y que además han tenido una reciente campaña de vacunación de la vacuna BCG son:\n\n",
-  paste(subset(
-    COVID_BGC, (dpm_100d < m1) &
-      (vaccination_2020_2015 == 1)
-  )$country_name, collapse = ', ')
-)
+```{r}
+table(is.null(COVID_BGC))
 ```
+No existen valores nulos.
+
+**b)** ¿Existen *"missing values"* en el conjunto de datos?
+
+```{r}
+table(is.na(COVID_BGC))
+```
+
+Tenemos 21 países con algún valor perdido. Hemos de tener esto en cuenta para futuros análisis.
 
 #### **Hagamos un poco de estadística descriptiva:**
 
@@ -275,6 +261,7 @@ cat(
 summary(COVID_BGC)
 # Igual habría que dibujar histogramas de tasas de muerte, y de vacunas puestas. No sé la verdad.
 ```
+
 **b)** Distribución de las variables
 
 Observemos cómo se distribuyen los datos de *"deaths per million 100 days after fifth death"* y de
@@ -298,6 +285,7 @@ ggplot(COVID_BGC, aes(x= vaccination_2020_2015, fill = "b"))+geom_bar()+
   theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
   ggtitle("Presencia de una campaña de vacunación entre 2015 y 2020")
 ```
+
 También podemos comprobar qué distribución sigue una variable binomial, es decir, el número de periodos con vacuna de 9 periodos posibles. Esta es una variable binomial ya que es resultado de n=9 observaciones con resultado de éxito (hay vacunación) o fracaso (no lo hay), Para observar su distribución podemos utilizar un histograma o un gráfico de barras. 
 
 ```{r}
@@ -305,6 +293,7 @@ ggplot(COVID_BGC, aes(x= periods_with_vaccine, fill = "b"))+geom_bar()+
   theme_bw()+theme(legend.position = 0, panel.grid = element_blank())+
   ggtitle("Número de décadas o lustros con campaña de vacunación activa")
 ```
+
 Dos variables muy diferentes son las que se refieren al primer y último año de vacunación. Al tratarse de años, podrían seguir una distribución uniforme. Pero es lógico pensar que estos puedan tener una distribución simétrica semejante a la normal, ya que los países tienden a comenzar campañas de vacunación en momentos parecidos. Veámos qué distribución tienen los datos con un gráfico de barras.
 ```{r}
 ggplot(COVID_BGC, aes(x=last_vaccine_year, fill = "b"))+geom_bar()+
@@ -371,6 +360,110 @@ was_there_a_vaccine(country = "Spain", year = 1975)
 was_there_a_vaccine("URSS", 1960)
 was_there_a_vaccine("Spain", 2022)
 ```
+
+**c)** ¿Cuál es la media para la variable ``dpm_100d`` para el conjunto de países que la han medido? ¿Y para la variable ``si_100d``?
+```{r}
+m1 <- mean(na.omit(COVID_BGC$dpm_100d))
+m2 <- mean(na.omit(COVID_BGC$si_100d))
+cat(sprintf("La media para dpm_100d es %.2f\n", m1))
+cat(sprintf("La media para si_100d es %.2f\n", m2))
+```
+Un detalle importante que se puede apreciar es que la media para el **"stringency index"** de los países considerados en este conjunto de datos se encuentra por debajo de 50, lo que significaría que, de media, las medidas tomadas por los países para aplacar la pandemia 100 días tras la quinta meurte registrada no fueron muy severas.
+
+**d)** ¿Cuáles son la varianza y la desviazon estandar para la variable ``dpm_100d`` para el conjunto de países que las han medido? ¿Y para la variable ``si_100d``?
+
+```{r}
+v1 <- var(na.omit(COVID_BGC$dpm_100d))
+v2 <- var(na.omit(COVID_BGC$si_100d))
+sd1 <- sd(na.omit(COVID_BGC$dpm_100d))
+sd2 <- sd(na.omit(COVID_BGC$si_100d))
+
+cat(sprintf("La varianza para dpm_100d es %.2f\n", v1))
+cat(sprintf("La desviación estandar para dpm_100d es %.2f\n", sd1))
+cat(sprintf("La varianza para si_100d es %.2f\n", v2))
+cat(sprintf("La desviación estandar para si_100d es %.2f\n", sd2))
+```
+
+**e)** ¿Cuáles son los países cuyo valor para ``dpm_100d`` (en caso de estar presente) se encuentra por debajo de la media? ¿Y para la variable ``si_100d``?
+```{r}
+cat(
+  "Los países cuyo valor de dpm_100d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, dpm_100d < m1)$country_name, collapse = ', '),
+  "\n\n"
+)
+cat(
+  "Los países cuyo valor de si_100d es menor que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, si_100d < m2)$country_name, collapse = ', ')
+)
+```
+
+**f)** ¿Cuáles son los países que cumplen ambas condiciones del apartado anterior?
+```{r}
+cat(
+  "Los países cuyos valores de dpm_100d y de si_100d son menores que la media del dataset son:\n\n",
+  paste(subset(COVID_BGC, (dpm_100d < m1) &
+                 (si_100d < m2))$country_name, collapse = ', ')
+)
+```
+
+**g)** ¿Cuáles son los países que han tenido campaña de vacunación de la vacuna *BCG* más reciente y que su la media de mortalidad a los 100 días es menor que la media?
+```{r}
+
+cat(
+  "Los países cuyos valores de dpm_100d son menores que la media del dataset y que además han tenido una reciente campaña de vacunación de la vacuna BCG son:\n\n",
+  paste(subset(
+    COVID_BGC, (dpm_100d < m1) &
+      (vaccination_2020_2015 == 1)
+  )$country_name, collapse = ', ')
+)
+```
+
+**h)** ¿Cuáles son las frecuencias relativas y absolutas de la variable ``si_100d``?
+```{r}
+prop.table(table(COVID_BGC$si_100d))
+```
+
+**i)** ¿Cuáles son las frecuencias relativas y absolutas de la variable ``dpm_100d``?
+```{r}
+prop.table(table(COVID_BGC$dpm_100d))
+```
+
+**j)** ¿Cuáles son las frecuencias relativas y absolutas de la variable ``vaccination_2020_2015``?
+```{r}
+prop.table(table(COVID_BGC$vaccination_2020_2015))
+```
+
+**k)** ¿Cuáles son las frecuencias relativas cruzadas de las variables ``dpm_100d`` y ``vaccination_2020_2015``?
+```{r}
+prop.table(table(COVID_BGC$dpm_100d, COVID_BGC$vaccination_2020_2015))
+```
+
+**l)** Hagamos un diagrama de tallo y hojas de la variable ``dpm_100d``.
+```{r}
+stem(COVID_BGC$dpm_100d)
+```
+
+**m)** Hagamos unos diagramas de cajas y bigotes para la variable ``dpm_100d`` argupada según los valores de ``vaccination_2020_2015``.
+```{r}
+bxp_COVID_BGC <- COVID_BGC
+bxp_COVID_BGC$vaccination_2020_2015 <- factor(
+                                              bxp_COVID_BGC$vaccination_2020_2015,
+                                              labels = c("No", "Sí")
+                                              )
+(
+ ggplot(
+        bxp_COVID_BGC,
+        aes(x = vaccination_2020_2015, y = dpm_100d)
+        )
+        + geom_boxplot(fill = "tomato1")
+        + labs(
+               title = "Boxplot muertes por millón por vacunación reciente",
+               x = "Campaña de vacunación 2015 y 2020",
+               y = "Muertes por millón 100 días después de la primera muerte"
+               )
+ )
+```
+
 ## **Estudio de los datos: Machine learning**
 
 En el siguiente paso, estudiaremos los datos presentados, intentando demostrar alguna relación entre las variables
@@ -390,6 +483,7 @@ cormat <-
     cor(df)
 cormat
 ```
+
 Y visualizamos la matriz usando ggplot geom_tile.
 
 ```{r plot}
@@ -401,13 +495,14 @@ ggplot(cormat2, aes(x = Var1, y = Var2, fill = value)) + geom_tile() + scale_fil
   theme(axis.text.x = element_text(angle = 90))+xlab("")+ylab("")+labs(fill = "Correlación")
 
 ```
+
 En el anterior gráfico vemos diferentes variables relacionadas de manera lineal. Algunas de las relaciones se deben
 a que son variables relacionadas y, por lo tanto, no nos aportan nueva información ya que son relaciones ya conocidas.
 Como las relaciones entre la vacunación en 2020-2015 y el número de periodos con vacuna o el último año de vacunación;
 o, en definitiva, cualquier relación entre las variables que tratan de los años de vacunación. 
 
 Las relaciones que buscamos son aquellas que relacionen algún dato sobre la campaña de vacunación y el número de 
-muertes por millón de habitantes. Para este caso, vemos que existen correlacione negativas entre el número de muertes
+muertes por millón de habitantes. Para este caso, vemos que existen correlaciones negativas entre el número de muertes
 y el último año de vacunación, además de con la vacunación entre 2020 y 2015.
 
 Revisamos los valores anteriores podemos ver que estas correlaciones son de -0.55 (dpm_100d, vaccination_2020_2015) y 
@@ -432,11 +527,12 @@ En segundo lugar, el último año de vacunación.
 ```{r}
 modelo <- lm(dpm_100d ~ last_vaccine_year,data = df)
 plot(COVID_BGC$last_vaccine_year, COVID_BGC$dpm_100d ,xlab="Último año con vacunación",ylab="Muertes por millón de habitantes")
-abline(lm(dpm_100d ~ last_vaccine_year, df)
+abline(lm(dpm_100d ~ last_vaccine_year, df))
 ```
 ```{r}
 summary(modelo)
 ```
+
 Vemos que el último modelo es mejor, ya que tiene un menor error y un mayor R cuadrado.
 
 Podemos construir un modelo múltiple también, utilizand ambos predictores.
@@ -444,7 +540,8 @@ Podemos construir un modelo múltiple también, utilizand ambos predictores.
 modelo <- lm(dpm_100d ~ last_vaccine_year+vaccination_2020_2015 ,data = df)
 summary(modelo)
 ```
-En este modelo observamos un ligreo incremento en R cuadrado y que el efecto del predictor vaccination_2020_2015 no
+
+En este modelo observamos un ligero incremento en R cuadrado y que el efecto del predictor vaccination_2020_2015 no
 es significativo. Podemos considerar, por lo tanto, que el modelo que incluye sólo la variable last_vaccine_year es
 mejor.
 
@@ -453,6 +550,7 @@ Como última comporbación, podemos observar un modelo que incluya todas las var
 modelo <- lm(dpm_100d ~ ., data = df)
 summary(modelo)
 ```
+
 Vemos, por lo tanto, que este es el modelo que mejor predice las muertes por millón. Siendo efectivos los predictores:
 primer año de vacunación, último año de vacunación y el stringency_index, que indica el nivel de las restricciones
 adoptadas.
@@ -461,6 +559,7 @@ Computemos el AIC para comprobar:
 ```{r}
 step(modelo)
 ```
+
 Con esto confirmamos lo dicho, el modelo dpm_100d ~ last_vaccine_year + first_vaccine_year + si_100d
 es el mejor. 
 
@@ -481,21 +580,24 @@ indica un momento peor en la epidemia y una escalada de las restricciones.
 Pasamos a realizar un test anova entre las variables muertes por millón y vacunación entre 2015 y 2020. 
 Lo mismo con las variables muertes por millón y último año de vacunación.
 
-
 ```{r}
 aggregate(dpm_100d ~ last_vaccine_year, data = df, mean)
 aggregate(dpm_100d ~ vaccination_2020_2015, data = df, mean)
 ```
+
 Observamos que la diferencia en las medias de muertes por millón en los países con distinta vacunación entre 2015
 y 2020 es alta. También observamos diferencias, aunque menos claras, dependiendo del último año de vacunación.
 
 Pasaremos, ahora, a comprobar la normalidad de la variable.
 
 ```{r}
-by(df,
+by(
+   df,
    df %>% .$vaccination_2020_2015,
-   FUN=function(x){nortest::lillie.test(x$dpm_100d)})
+   FUN=function(x){nortest::lillie.test(x$dpm_100d)}
+   )
 ```
+
 El test nos indica que podemos asumir una distribución normal de la variable en los países sin vacuna entre 2015 y
 2020 pero no en los países con vacuna en estos años, ya que el resultado del test ha sido un p-value por debajo de 
 0.05.
@@ -503,9 +605,18 @@ El test nos indica que podemos asumir una distribución normal de la variable en
 Comprobaremos lo mismo para la variable last_vaccine_year.
 
 ```{r}
-by(df,
-   df %>% .$last_vaccine_year,
-   FUN=function(x){nortest::lillie.test(x$dpm_100d)})
+tryCatch(
+    {
+     by(
+        df,
+        df %>% .$last_vaccine_year,
+        FUN = function(x) {nortest::lillie.test(x$dpm_100d)}
+        )
+     },
+    error = function(e) {
+      message("Error in nortest::lillie.test(x$dpm_100d) : sample size must be greater than 4")
+      }
+)
 ```
 
 En este caso, la comparación entre grupos es imposible ya que no todos los grupos incluyen más de 4 países.
@@ -529,6 +640,7 @@ hc_COV <- hclust(dist_COV, "complete") #Clasificamos en clusters
 #hc_COV$labels <- COVID_BGC2[hc_COV$labels,]$country_name
 plot( hc_COV, labels = COVID_BGC2$country_name,cex=0.6,hang=-1, main ="Dendograma de cluster") #Visualizar
 ```
+
 Computando la distancia euclidea vemos que existen dos grandes clusters, uno con países mucho más parecidos, que presentan menos
 muertes y una vacunación similar. Y otro en el que encontramos más variabilidad y los países más golpeados por la pandemia.
 ```{r}
@@ -545,6 +657,7 @@ print(paste("el coeficiente de aglomeración de agnes es", hc_ag_COV$ac))
 hc_di_COV <- cluster::diana(df2) #Clasificamos por división
 cluster::pltree(hc_di_COV,cex=0.6,hang=-1, main ="Dendograma de diana", labels = COVID_BGC2$country_name) #Visualizar
 ```
+
 Y muy similares los de diana. 
 En todos ellos, España tiene una gran similaridad con Italia, Suecia y Reino Unido. Los paises europeos con mayor número de muertes.
 
@@ -556,20 +669,19 @@ print(paste("el coeficiente de division de diana es", hc_di_COV$dc))
 cluster::pltree(hc_di_COV,hang=-1,cex=0.6, labels = COVID_BGC2$country_name)
 rect.hclust(hc_di_COV,k=4,border=2:10)
 ```
+
 Si observamos los cuatro clusters principales en diana vemos que una mayoría de países con una baja incidencia durante la primera
 ola de la pandemia se encuentran en el cluster rojo, a poca distancia. Luego vemos un cluster compartido por Colombia, Portugal,
-Suiza y Méjico; y otros dos clusters más. Es posible asumir que estas distancias, por cómo han sido computadas, se deben a 
+Suiza y México; y otros dos clusters más. Es posible asumir que estas distancias, por cómo han sido computadas, se deben a 
 diferencias en el aumento de las muertes por coronavirus, en las restricciones adoptadas y en la vacunación de BCG.
 
-```{r}
-library(umap)
+## **Conclusiones del estudio**
 
+Hemos podido ver que existen correlaciones negativas entre las campañas de vacunación de BCG y las muertes por millón debidas a la COVID19. De hecho, hemos podido comprobar que las variables ``last_vaccine_year`` junto a ``first_vaccine_year`` sirven como buenos predictores para las muertes por millón (variable ``dpm_100d``). Se podría debatir si la variable ``si_100d`` contribuye a una mejor predicción, ya que su efecto puede ser tanto a priori (menos muertes debido a unas restricciones más severas, hecho que disminuye los contagios) como a posteriori (dado que el país ha sufrido de un gran número de muertes, la severidad de las restricciones se ha visto aumentada para disminuir los contagios). 
 
-umap <- umap(as.matrix(dist_COV))
+Con respecto a los clusters de países, como ya se ha mencionado antes, estos se agrupan bien según las severidad de las restricciones y las campañas de vacunación de la BCG.
 
-ggplot(aes(x = umap$data))
-```
-
+Como corolario de los resultados anteriores podemos decir que a priori la vacuna BCG tiene un efecto beneficioso para el sistema inmune, dotando a la población de una mayor supervivencia frente a la COVID19. Estos resultados deberían respaldarse con estudios de comparación de secuencias de los antígenos proporcionados por la vacuna BCG y el genoma del SARS-CoV-2 ya que en caso de hallar similitudes, estas podrían explicar el fenómeno observado. Podría ser que los anticuerpos generados como respuesta a la vacuna BCG tuvieran afinidad por antígenos presentados por el SARS-CoV-2 y por tanto activarían una primera respuesta inmune ante la infección. Estos resultados podrían emplearse también para acelerar el proceso de desarrollo de vacunas para la COVID19.
 
 
 ```{r, echo=FALSE}
