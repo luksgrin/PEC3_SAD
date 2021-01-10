@@ -176,25 +176,25 @@ BCG_no_strain_simple[BCG_no_strain_simple$periods_with_vaccine == 0,]$first_vacc
 
 # Limpiar datos de COVID
 
-# Elimino columnas que sean sólo NA
+# Eliminamos columnas que sean sólo NA
 COVID_noNA <- COVID_noformat[, apply(!is.na(COVID_noformat), 2, all)]
 
 # En este caso, para variar, los valores vacíos están denotados como NULL,
-# cambio esto a NA
+# cambiamos esto a NA
 COVID_Na <- sapply(COVID_noNA, function(x)
     gsub("NULL", NA, x))
 
-# El resulatado de la función anterior es una string. Lo convierto a dataframe.
+# El resultado de la función anterior es una string. Lo convertimos a dataframe.
 COVID_Na_df <- as.data.frame(COVID_Na)
 
-# Modifico las fechas para que se almacenen como Date
+# Modificamos las fechas para que se almacenen como Date
 COVID_Na_df[, c("date_fifth_death")] <-
     as.Date(COVID_Na_df[, c("date_fifth_death")], "%d/%m/%y")
 
 COVID_Na_df[, c("date_first_death")] <-
     as.Date(COVID_Na_df[, c("date_first_death")], "%d/%m/%y")
 
-# Modifico las muertes para que se almacenen como floats.
+# Modificamos las muertes para que se almacenen como floats.
 COVID_Na_df[, -c(1, 2, 3, 4)] <-
     sapply(COVID_Na_df[, -c(1, 2, 3, 4)], as.numeric)
 
@@ -204,7 +204,7 @@ COVID_Na_df2 <- data.frame("country_name" = COVID_Na_df$country_name,
                            "si_100d" = COVID_Na_df$stringency_index_100_days_after_fifth_death)
 ################################################################################################
 
-# Junto ambos dataframes en uno sólo.
+# Juntamos ambos dataframes en uno sólo.
 COVID_BGC <-
     inner_join(BCG_no_strain_simple, COVID_Na_df2, by = "country_name")
 
@@ -231,7 +231,7 @@ Podemos ver que nuestro data frame tiene 65 observacones y 7 columnas. Las colum
 - **periods_with_vaccine**: el número de periodos estudiados con vacunación activa.
 - **vaccination_2020_2015**: el único periodo considerado en este estudio (el último).
 - **last_vaccine_year**: de los años estudiados, el último con campaña de vacunación. En el caso de no tener vacunación, este será el primer año estudiado (1950).
-- **first_vaccine_year**: de los años estudiados, el primero con campaña de vacunación. En el caso de no tener vacunación, este será el último año estudiado (2020)
+- **first_vaccine_year**: de los años estudiados, el primero con campaña de vacunación. En el caso de no tener vacunación, este será el último año estudiado (2020).
 - **dpm_100d**: muertes por millón tras haber pasado 100 días desde la quinta muerte registrada.
 - **si_100d**: "stringency index" (indicador que va de 0 a 100 que ide la severidad de las medidas tomadas por el país para aplacar la pandemia) tras haber pasado 100 días desde la quinta muerte registrada.
 
@@ -338,8 +338,8 @@ was_there_a_vaccine <- function(country, year){
   #year = valor numérico indicando el año en duda
   
   
-  #En este caso, comrpobamos si el país está en la lista de paises y si el añi está incluido en los años 
-  #estudiados.
+  #En este caso, comrpobamos si el país está en la lista de paises y si el año está incluido en los 
+  #años estudiados.
   if (sapply(COVID_BGC$country_name, function(x){x==country})%>% sum()==0){
     print("El país especificado no está en la lista")
   }else if(year > max(COVID_BGC$last_vaccine_year) | year < min(COVID_BGC$first_vaccine_year) ){
@@ -368,7 +368,7 @@ m2 <- mean(na.omit(COVID_BGC$si_100d))
 cat(sprintf("La media para dpm_100d es %.2f\n", m1))
 cat(sprintf("La media para si_100d es %.2f\n", m2))
 ```
-Un detalle importante que se puede apreciar es que la media para el **"stringency index"** de los países considerados en este conjunto de datos se encuentra por debajo de 50, lo que significaría que, de media, las medidas tomadas por los países para aplacar la pandemia 100 días tras la quinta meurte registrada no fueron muy severas.
+Un detalle importante que se puede apreciar es que la media para el **"stringency index"** de los países considerados en este conjunto de datos se encuentra por debajo de 50, lo que significaría que, de media, las medidas tomadas por los países para aplacar la pandemia 100 días tras la quinta muerte registrada no fueron muy severas.
 
 **d)** ¿Cuáles son la varianza y la desviazon estandar para la variable ``dpm_100d`` para el conjunto de países que las han medido? ¿Y para la variable ``si_100d``?
 
@@ -496,9 +496,10 @@ ggplot(cormat2, aes(x = Var1, y = Var2, fill = value)) + geom_tile() + scale_fil
 
 ```
 
-En el anterior gráfico vemos diferentes variables relacionadas de manera lineal. Algunas de las relaciones se deben
-a que son variables relacionadas y, por lo tanto, no nos aportan nueva información ya que son relaciones ya conocidas.
-Como las relaciones entre la vacunación en 2020-2015 y el número de periodos con vacuna o el último año de vacunación;
+En el anterior gráfico vemos diferentes variables relacionadas de manera lineal. Algunas de las 
+relaciones se deben a que son variables relacionadas y, por lo tanto, no nos aportan nueva 
+información ya que son relaciones ya conocidas. Como las relaciones entre la vacunación en 2020-2015 
+y el número de periodos con vacuna o el último año de vacunación;
 o, en definitiva, cualquier relación entre las variables que tratan de los años de vacunación. 
 
 Las relaciones que buscamos son aquellas que relacionen algún dato sobre la campaña de vacunación y el número de 
